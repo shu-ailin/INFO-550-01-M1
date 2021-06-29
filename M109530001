@@ -40,7 +40,7 @@ dbloc    = "./google_play_labs.db"
 filename = "./google_play_"
 
 # 數據定義語言 (Data Definition Language) 用來操作資料庫、表、列、索引等資料庫對象，關鍵字包括create、drop、alter等
-# SQLite的AUTOINCREMENT是一個關鍵字，用於表中的字段值自動遞增。我們可以自動增加一個字段值使用AUTOINCREMENT關鍵字帶有具體列名創建表時自動遞增 (http://tw.gitbook.net/sqlite/sqlite_using_autoincrement.html)
+# SQLite的AUTOINCREMENT是一個關鍵字，用於表中的字段值自動遞增。我們可以自動增加一個字段值使用AUTOINCREMENT關鍵字帶有具體列名創建表時自動遞增 
 ddl = '''CREATE TABLE IF NOT EXISTS news (  
         id INTEGER PRIMARY KEY AUTOINCREMENT,  
         created_date DATE,
@@ -55,8 +55,7 @@ ddl = '''CREATE TABLE IF NOT EXISTS news (
 
 # write image to disk
 def write_file(data, filename):  # creates file and writes list to it
-    with open(filename, 'wb') as f:  # with語句來自動幫我們呼叫close()方法；wb 僅用於寫入，若該文件以存在將其覆蓋，不存在則創建： (https://www.itread01.com/content/1549615343.html)
-        f.write(data)  # file.write()
+    with open(filename, 'wb') as f:  # with語句來自動幫我們呼叫close()方法；wb 僅用於寫入，若該文件以存在將其覆蓋，不存在則創建
  
  # Create a ghost browser with user-agent parameter
 
