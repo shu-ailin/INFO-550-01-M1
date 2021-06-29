@@ -1,3 +1,209 @@
+# Web Crawler
+
+import sqlite3  # 輸入SQL資料庫
+import requests  # 使用 Requests實現 HTTP請求
+import time  # 引入time (time模組提供各種操作時間的函式)
+import datetime  # 引入datetime，datetime是time的進階版 
+import json  # 輸入 json語法
+import os  # python OS模塊，用於調用操作系統命令，來達成建立文件，刪除文件，查詢文件等
+from bs4 import BeautifulSoup  # Beautiful Soup 可以快速解析網頁 HTML 碼 
+from selenium import webdriver  # Selenium是模擬一般消費者瀏覽的網頁的習慣，使用 Selenium爬蟲前，Webdriver是必備的，而不同的瀏覽器會有不同的driver 
+import pandas as pd  # Pandas 是 py的一個數據分析 lib，提供高效能、簡易使用的資料格式 (e.g. CSV)
+from fake_useragent import UserAgent  # 設定 User-Agent假裝自己是瀏覽器
+
+# Google Play URL and SQLite DB Location
+
+GooglePlay_url = 'https://play.google.com/store/apps/details?id=com.dd.doordash&hl=en_US&gl=US&showAllReviews=true'  # 放入爬蟲標的子網址 (Google Play 某個應用程式子頁面)
+
+#sqlite database location
+dbloc = "./google_play_labs.db" 
+
+# Open database and create the "news" table if not exists
+def create_table (db, sql):  # 定義創建 SQL資料庫
+    conn = sqlite3.connect(db)  # 連接資料庫檔案 db.sqlite 
+    conn.execute(sql) # shortcut for conn.cursor().execute(sql) 執行 SQL指令 (字串)
+    return conn
+       
+# Retrieve SQLite database data
+def read_data (db, sql):  # 定義讀取 SQL資料庫
+    conn = sqlite3.connect(db)  # 連接資料庫檔案 db.sqlite
+
+    try:  #嘗試執行的程式碼
+        return pd.read_sql(sql, conn)
+    except Exception as error:  #當遇到例外時，要執行的程式碼 
+        print("Failed to read blob data from sqlite table", error)
+    finally:  # 例外處理結束後，無論如何都會執行的部分 
+        conn.close()  # 關閉資料庫連線 
+
+## sqlite database location
+dbloc    = "./google_play_labs.db"
+filename = "./google_play_"
+
+# 數據定義語言 (Data Definition Language) 用來操作資料庫、表、列、索引等資料庫對象，關鍵字包括create、drop、alter等
+# SQLite的AUTOINCREMENT是一個關鍵字，用於表中的字段值自動遞增。我們可以自動增加一個字段值使用AUTOINCREMENT關鍵字帶有具體列名創建表時自動遞增 (http://tw.gitbook.net/sqlite/sqlite_using_autoincrement.html)
+ddl = '''CREATE TABLE IF NOT EXISTS news (  
+        id INTEGER PRIMARY KEY AUTOINCREMENT,  
+        created_date DATE,
+        Name     TEXT,
+        Timestamp       TEXT,
+        likecounts       TEXT,
+        Sentimen      TEXT,
+        Content    TEXT);'''
+# 自增關鍵字
+
+# Create a reusable function "write_file" for writing data in a file
+
+# write image to disk
+def write_file(data, filename):  # creates file and writes list to it
+    with open(filename, 'wb') as f:  # with語句來自動幫我們呼叫close()方法；wb 僅用於寫入，若該文件以存在將其覆蓋，不存在則創建： (https://www.itread01.com/content/1549615343.html)
+        f.write(data)  # file.write()
+ 
+ # Create a ghost browser with user-agent parameter
+
+ua = UserAgent()  # 設定 User-Agent 假裝自己是瀏覽器 (有時網路超時，重開 chromedriver.exe試試看)
+# 根據真實世界的統計隨機產生一個 User-Agent 字串 
+agent = ua.random  
+headers= {"user-agent":agent}
+
+# Python中selenium.webdriver.ChromeOptions方法的典型用法代碼 
+options = webdriver.ChromeOptions()
+options.add_argument("user-agent={}".format(agent)) 
+# options.add_argument('--headless') #規避 bug
+
+driverPath = "C:\ProgramData\Anaconda3\chromedriver.exe"  #填入 chromedriver.exe的路徑 (!chromedriver.exe 需與 Chrome在一起 / 路徑後面要加驱动名 \chromedriver)
+driver = webdriver.Chrome(options=options, executable_path=driverPath) # Chrome 
+
+# 瀏覽器視窗設定
+
+driver.set_window_size(480, 800) #視窗大小設定
+
+# Use the ghost driver point to the targeting URL
+
+url = GooglePlay_url # 所有_ROOT目錄都必須是絕對目錄，關於文件系統；_url則是目錄的網址
+driver.implicitly_wait(10) # 隱式等待是通過一定的時長等待頁面上某元素載入完成。如果超出了設定的時長元素還沒被載入，則丟擲 NoSuchElementException異常；implicitly_wait()比 sleep() 更加智慧，後者只能選擇一個固定的時間的等待，前者可以在一個時間範圍內智慧的等待。以秒為單位。 
+driver.get(url)
+
+# Make the ghost browser jump to "Google Play DoorDash" reviews
+
+# xpath = '//*[@id="nav"]/div/ul[1]/li[1]/a'
+# "//*"               星號 (*) 僅能表示未知的元素，但不能表示未知的層級。
+# ".//li"             在某個已取得的特定元素下，取得該元素底下所有 <li>。
+# "//*[@href]"        取得包含 href 屬性的所有元素。
+# "//div[not(@id)]"   取得包含 id 屬性的所有 <div>。
+
+xpath = '//*[@id="yDmH0d"]' # DoordDash xpath 
+# xpath是 XML路徑語言，它可以用來確定 xml文件中的元素位置，通過元素的路徑來完成對元素的查詢。HTML就是XML的一種實現方式，所以xpath是一種非常強大的定位方式
+driver.find_element_by_xpath(xpath).click() # driver.find_element_by_xpath(xpath)需要獲取頁面上的一組元素是的方法，click點選元素，利用元素屬性來進行xpath定位，搜尋框還可以利用id和name屬性去定位
+time.sleep(5) # time.sleep(t) t 為設定固定休眠時間，推迟执行的秒数，函数推迟调用线程的运行，可通过参数secs指秒数，表示进程挂起的时间。 
+
+# 為了擷取評論日期的順序，點選在 DoorDash LOGO下方的 Most relevant xpath
+
+driver.find_element_by_xpath('//*[@id="fcxH9b"]/div[4]/c-wiz/div/div[2]/div/div/main/div/div[1]/div[2]/c-wiz/div[1]/div/div[1]/div[2]/span').click()
+time.sleep(1)
+
+# 點擊 Most relevant後，再選擇 Newest xpath
+
+driver.find_element_by_xpath('//*[@id="fcxH9b"]/div[4]/c-wiz/div/div[2]/div/div/main/div/div[1]/div[2]/c-wiz/div[1]/div/div[2]/div[1]/span').click()
+time.sleep(1)
+
+# Make the ghost browser jump to the end of the screen
+
+# to the top
+# js="var q=document.documentElement.scrollTop=0"
+
+# to the bottom
+# 如果滾動條在最上方的話 scrollTop=0，那麼要想使用滾動條在最可下方，可以 scrollTop=100000，這樣就可以使滾動條在最下方。
+js1 = "var q=document.documentElement.scrollTop=10000"  # 將頁面滾動條拖到底部 
+js2 = 'window.scrollTo(0, document.body.scrollHeight)' # 將滾動條移動到頁面的頂部，頂部：scrollTop=0，底部：scrollTop=10000
+
+# Show More
+
+show_more_xpath = '//*[@id="fcxH9b"]/div[4]/c-wiz/div/div[2]/div/div/main/div/div[1]/div[2]/div[2]/div/span/span' 
+
+for i in range(30): # 設定做 ?個點擊「SHOW MORE」，一天的評論數量大約 4或 5一個迴圈，一個月約 130循環
+    for i in range(5): # 每加載 5次會需要點擊一次「SHOW MORE」
+        time.sleep(1)
+        driver.execute_script(js2) # 網頁下拉
+    try:
+        driver.find_element_by_xpath(show_more_xpath).click() # 點擊 SHOW MORE
+        soup = BeautifulSoup(driver.page_source)
+        driver.implicitly_wait(5)
+    except:
+        break
+ 
+# full review 評論底下還有展開鍵 (https://tlyu0419.github.io/2019/12/26/Crawl-GooglePlay/)
+
+full_review = '//button[@jsname="gxjVle"]'
+driver.execute_script("window.scrollTo(0, 0);")
+for i, element in enumerate(driver.find_elements_by_xpath(full_review)):
+    if i % 10 == 0:
+        print(i)
+    element.click()
+    print(10)
+
+driver.close() # 關掉ghost browser，將網頁自動關掉；close()或 quit()定義為退出模擬瀏覽器
+
+# 想存幾種物件先命名好，依據爬蟲資料預先人工分析
+names = []
+timestamps = [] 
+sentimens = []
+likecounts = []
+contents = []
+
+list_of_comments = []  # 尋找單則評論 Html以及讚數 Html
+for i, element in enumerate(soup.find_all('div',{'jscontroller':'H6eOGe'})):
+    if i % 10 == 0:
+        print(i)
+    try:
+        likecounts = element.find('div',{'class':'jUL89d y92BAb'}).text
+    except:
+        likecounts = str(0)   
+        
+    # 若評論敘述少 bN97Pc    
+    content = element.find('span',{'jsname':'bN97Pc'}).text
+    # 如果完整評論裡有內容就抓全部內容 fbQN7e
+    if len(element.find('span',{'jsname':'fbQN7e'}).text) >= 20:
+        content = element.find('span',{'jsname':'fbQN7e'}).text
+    ndf = pd.DataFrame([{'name':element.find('span',{'class':'X43Kjb'}).text,
+                         'sentimen':element.find('div',{'class':'pf5lIe'}).find('div')['aria-label'],
+                         'likecounts':element.find('div',{'class':'jUL89d y92BAb'}).text,
+                         'timestamp':element.find('span',{'class':'p2TkOb'}).text,
+                         'content':content}],
+                       columns = ['name', 'timestamp', 'sentimen', 'likecounts', 'content'])
+    list_of_comments.append(ndf)
+
+# DataFrame建一個空物件
+
+comments = pd.DataFrame() 
+
+# Create a Pandas dataframe from the list
+
+comments["name"] = names
+comments["timestamp"] = timestamps
+comments["sentimen"] = sentimens
+comments["likecounts"] = likecounts
+comments["content"] = contents
+comments.head()
+
+comments = pd.concat(list_of_comments, ignore_index=True)
+print(len(comments))
+comments.head(10) # 先show幾筆資料
+
+# Get today's date with format YYYY-MM-DD, Ex. 2020-12-25 (每個國家日期格式不同)
+def get_today(format="%Y-%m-%d"):
+    datetime_dt = datetime.datetime.today() # 獲得當地時間
+    datetime_str = datetime_dt.strftime(format) # 格式化日期 ("%Y/%m/%d %H:%M:%S")
+    return datetime_str  # return 語句就是講結果返回到呼叫的地方，並把程式的控制權一起返回
+    
+print("today: {}".format(get_today()))
+
+comments.to_csv(filename + get_today("%Y%m%d") + '.csv', encoding='utf-8')
+
+# Create a table "news" if not exists
+conn = create_table(dbloc, ddl)
+
+# Text Mining
+
 import nltk
 import numpy as np
 import pandas as pd
