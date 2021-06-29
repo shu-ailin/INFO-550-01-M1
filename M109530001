@@ -1,1 +1,295 @@
+import nltk
+import numpy as np
+import pandas as pd
 
+csv_path_N = "C:/Users/inch/OneDrive/桌面/All Data/Doordash_Negative.csv"
+df_N = pd.read_csv(csv_path_N, encoding = 'ISO-8859-15')
+df_N.head(5)
+
+content_N = df_N.fillna('')
+content_N = df_N["content"]
+text_N = pd.DataFrame(content_N)
+text_N.head(5)
+
+doc_N = []
+doc_N = text_N["content"].tolist()
+doc_N
+
+# 斷句斷詞
+from nltk import word_tokenize
+
+i = 0
+token_doc_N = []
+
+for word in doc_N:
+    lower_doc_N = word.lower()
+    doc_token_N = word_tokenize(lower_doc_N)
+    token_doc_N.append(doc_token_N)
+    i += 1
+print(token_doc_N)
+
+# 刪除停用詞
+from nltk.corpus import stopwords
+nltk.download('stopwords')
+stopwords = nltk.corpus.stopwords.words('english')
+print(stopwords)
+
+doc_stop_N = []
+i = 0
+
+for word in token_doc_N:
+    doc_stop_N.append([])
+    for a in word:
+        if a not in stopword:
+            doc_stop_N[i].append(a)
+    i += 1
+    
+print(doc_stop_N)
+
+# 刪除標點符號
+from nltk import wordpunct_tokenize
+import string
+string.punctuation
+
+doc_punc_N = []
+i = 0
+
+for word in doc_stop_N:
+    doc_punc_N.append([])
+    for a in word:
+        if a not in string.punctuation:
+            doc_punc_N[i].append(a)
+    i+=1
+    
+print(doc_punc_N)
+
+# 刪除羅馬數字
+number = ('0','1','2','3','4','5','6','7','8','9')
+number
+
+doc_number_N = []
+i = 0
+
+for word in doc_punc_N:
+    doc_number_N.append([])
+    for a in word:
+        if a not in number:
+            doc_number_N[i].append(a)
+    i += 1
+    
+print(doc_number_N)
+
+# 刪除非字母
+doc_notword_N = []
+i = 0
+
+for word in doc_number_N:
+    doc_notword_N.append([])
+    for a in word:
+        if a.isalnum():                  # isalnum 也是去除非字母
+            doc_notword_N[i].append(a)
+    i += 1
+    
+print(doc_notword_N)
+
+# 除字根、還原字型
+
+from nltk.stem import PorterStemmer # 除字根
+doc_lem_N = []
+ps = PorterStemmer()
+i = 0
+
+for word in doc_notword_N:
+    doc_lem_N.append([])
+    for a in word:
+        doc_lem_N[i].append(ps.stem(a))
+        
+    i += 1
+
+print(doc_lem_N)
+
+from nltk.stem import WordNetLemmatizer # 字型還原  
+doc_stem_N = []
+ps = WordNetLemmatizer()
+i = 0
+
+for word in doc_lem_N:
+    doc_stem_N.append([])
+    for w in word:
+        word1 = ps.lemmatize(w, pos = "n")
+        word2 = ps.lemmatize(word1, pos = "v")
+        word3 = ps.lemmatize(word2, pos = "a")
+        word4 = ps.lemmatize(word3, pos = "r")
+        doc_stem_N[i].append(ps.lemmatize(word4))
+    
+    i += 1
+
+print(doc_stem_N)
+
+# 串成文檔
+doc_stem_s_N = []
+
+for article in doc_stem_N:
+    for word in article:
+        doc_stem_s_N.append(word)  
+
+print(doc_stem_s_N)
+
+# 計算詞頻
+import collections
+collection_N = collections.Counter(doc_stem_s_N)
+collection_N.most_common(50)
+
+# 文字雲
+import matplotlib.pyplot as plt
+from wordcloud import WordCloud
+%matplotlib inline
+from PIL import Image
+
+wordcloud = WordCloud(background_color = 'white')  # 做中文時，務必加上字形檔
+wordcloud.generate_from_frequencies(frequencies = collection_N)
+plt.figure(figsize = (10,15))
+plt.imshow(wordcloud, interpolation = "bilinear")
+plt.axis("off")
+wordcloud.to_file('WC_D_N.jpg')
+plt.show()
+
+# 計算特徵詞彙
+print("Total number of terms : {}".format(df_words_N.shape[0]))
+df_unique_words_N = pd.DataFrame(df_words_N.Term.unique(), columns = ['unique_term'])
+print("Total number of unique terms : {}".format(len(df_unique_words_N)))
+df_unique_words_N
+
+# 詞頻長條圖
+plt.rcParams["figure.figsize"] = (40,12) # Y軸長度 / X軸長度
+plt.rcParams['axes.labelsize'] = 30
+plt.rcParams['axes.titlesize'] = 30
+plt.rcParams['xtick.labelsize'] = 25
+plt.rcParams['ytick.labelsize'] = 25
+plt.rcParams['font.size'] = 20
+
+plt.rcParams['font.sans-serif'] = ['SimHei'] 
+plt.rcParams['font.family'] = 'sans-serif' 
+plt.rcParams['axes.unicode_minus'] = False
+
+max = 50
+
+df_terms_N.head(max).plot.bar()
+plt.xticks(rotation = 50)
+plt.xlabel("Terms")
+plt.ylabel("Number of Frequency")
+plt.show()
+
+# 字詞串成文檔
+
+doc_stem_str_N = []
+i = 0
+
+for word in doc_stem_N:
+    doc_stem_str_N.append((' '.join(map(str, doc_stem_N[i])))) # 將每個文檔形成一個文件
+    i += 1
+    
+print(doc_stem_str_N)
+
+# TF-IDF
+from sklearn.feature_extraction.text import TfidfVectorizer 
+import numpy as np
+
+tfidf_vectorizer = TfidfVectorizer(use_idf = True)
+tfidf_vectorizer_vectors = tfidf_vectorizer.fit_transform(doc_stem_str_N)
+tfidf = tfidf_vectorizer_vectors.todense()
+tfidf
+
+# Average TF-IDF
+
+# TFIDF of words not in the doc will be 0, so replace them with nan 
+tfidf[tfidf == 0] = np.nan
+
+# Use nanmean of numpy which will ignore nan while calculating the mean
+means = np.nanmean(tfidf, axis = 0)
+
+# convert it into a dictionary for later lookup
+means = dict(zip(tfidf_vectorizer.get_feature_names(), means.tolist()[0]))
+
+tfidf = tfidf_vectorizer_vectors.todense()
+
+TFIDF_G_N = pd.DataFrame.from_dict(means, orient = 'index', columns = ['Average TFIDF'])
+TFIDF_G_N.to_csv('TF_D_N.csv')
+means  
+
+# Argsort the full TFIDF dense vector
+ordered = np.argsort(tfidf *- 1)
+words = tfidf_vectorizer.get_feature_names()
+words
+
+top_k = 5
+
+for i, doc in enumerate(doc_stem_str_N):
+    result = { }
+    # Pick top_k from each argsorted matrix for each doc
+    for t in range(top_k):
+        # Pick the top k word, find its average tfidf from the
+        # precomputed dictionary using nanmean and save it to later use
+        result[words[ordered[i,t]]] = means[words[ordered[i,t]]]
+    print (result)
+
+# K-means
+from sklearn.cluster import KMeans
+import matplotlib.pyplot as plt
+
+vectorizer = TfidfVectorizer(sublinear_tf = True, min_df = 10, norm ='l2', ngram_range = (1, 2), stop_words = 'english')
+X_train_vc = vectorizer.fit_transform(pre_content_N['pre_content'])
+
+pd.DataFrame(X_train_vc.toarray(), columns = vectorizer.get_feature_names()).head() 
+
+# Elbow Method
+# set clusters to 10 ( To start with as a test )
+k_clusters = 10
+
+score = []
+for j in range(2, k_clusters + 1):
+    score = []
+   
+    for i in range(1, j + 1):
+        kmeans = KMeans(n_clusters = i, init = 'k-means++', max_iter = 300, n_init = 5, random_state = 0)
+        kmeans.fit(X_train_vc)
+        score.append(kmeans.inertia_)
+        
+    plt.plot(range(1, j + 1), score)
+    plt.title('The Elbow Method')
+    plt.xlabel('Number of clusters')
+    plt.ylabel('Score')
+    name="elbow"+str(j-1)+".png"
+    plt.savefig(name)
+    plt.show()
+
+# clustering
+k_clusters = 4
+
+model = KMeans(n_clusters = k_clusters, init = 'k-means++', n_init = 10, max_iter = 600, tol = 0.000001, random_state = 0)
+model.fit(X_train_vc)
+
+clusters = model.predict(X_train_vc)
+
+# Create a new column to display the predicted result
+pre_content_N['clustername'] = clusters
+# df_N.fillna('').head(5)
+
+# lable clustering
+pre_content_N.to_csv('cluster_D_N.csv')
+pre_content_N.head(5)
+
+# Plot the clusters in a scatter plot# 
+from sklearn.decomposition import PCA
+
+sklearn_pca = PCA(n_components = 2)
+Y_sklearn = sklearn_pca.fit_transform(X_train_vc.toarray())
+kmeans = KMeans(n_clusters = k_clusters, max_iter = 600, algorithm = 'auto')
+fitted = kmeans.fit(Y_sklearn)
+prediction = kmeans.predict(Y_sklearn)
+
+plt.figure(figsize = (14, 7))
+plt.scatter(Y_sklearn[:, 0], Y_sklearn[:, 1], c = prediction, s = 40, cmap = 'viridis', linewidths = 5)
+
+centers = fitted.cluster_centers_
+plt.scatter(centers[:, 0], centers[:, 1],c = 'pink', s = 200, alpha = 0.6)
